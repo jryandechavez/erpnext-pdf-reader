@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+from io import BytesIO
+
+import frappe
+from frappe import _
+from pypdf import PdfReader
+
+from sales_order_pdf_import.parser import parse_purchase_order
+from sales_order_pdf_import.matcher import match_item
+
+
+@frappe.whitelist()
+def parse_and_match_pdf(file_url: str) -> dict:
+    """Read an uploaded File and return a non-mutating import preview."""
+    if not file_url or not file_url.lower().split("?")[0].endswith(".pdf"):
+        frappe.throw(_("Please upload a PDF file."))
+
+    file_doc = frappe.get_doc("File", {"file_url": file_url})
+    if not file_doc.has_permission("read"):
+        frappe.throw(_("You do not have permission to read this file."), frappe.PermissionError)
+    if (file_doc.file_size or 0) > 10 * 1024 * 1024:
+        frappe.throw(_("The PDF must be 10 MB or smaller."))
+
+    content = file_doc.get_content()
+    try:
+        reader = PdfReader(BytesIO(content))
+        if len(reader.pages) > 20:
+            frappe.throw(_("The PDF must have 20 pages or fewer."))
+        # Layout mode preserves table columns. Plain pypdf extraction emits each
+        # cell separately and loses the relationship between qty/UOM/rate.
+        text = "\n".join(
+            page.extract_text(
+                extraction_mode="layout", layout_mode_space_vertically=False
+            )
+            or ""
+            for page in reader.pages
+        )
+    except frappe.ValidationError:
+        raise
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Sales Order PDF extraction failed")
+        frappe.throw(_("The PDF could not be read. It may be damaged or encrypted."))
+
+    if len(text.strip()) < 50:
+        frappe.throw(_("This PDF has no readable text. Run OCR on the PDF and upload it again."))
+
+    parsed = parse_purchase_order(text)
+    if not parsed["rows"]:
+        frappe.throw(_("No item rows were found in this PDF layout."))
+
+    for row in parsed["rows"]:
+        row.update(match_item(row["description"]))
+        if row["status"] == "matched" and not _item_supports_uom(
+            row["item_code"], row["stock_uom"], row["uom"]
+        ):
+            row.update(
+                status="unmatched",
+                item_code=None,
+                message=_("Item has no conversion for UOM {0}").format(row["uom"]),
+            )
+    return parsed
+
+
+def _item_supports_uom(item_code: str, stock_uom: str, pdf_uom: str) -> bool:
+    if not frappe.db.exists("UOM", pdf_uom):
+        return False
+    if stock_uom == pdf_uom:
+        return True
+    return bool(
+        frappe.db.exists(
+            "UOM Conversion Detail", {"parent": item_code, "uom": pdf_uom}
+        )
+    )
