@@ -27,15 +27,24 @@ frappe.ui.form.on("Sales Order", {
 
 function show_import_preview(frm, data) {
   const rows = data.rows || [];
-  const matched = rows.filter((row) => row.status === "matched");
+  const isImportable = (row) => ["matched", "matched_uom_fallback"].includes(row.status);
+  const matched = rows.filter(isImportable);
   const body = rows.map((row) => {
-    const status = row.status === "matched"
-      ? `<span class="indicator-pill green">${__("Matched")}: ${frappe.utils.escape_html(row.item_code)}</span>`
-      : `<span class="indicator-pill orange">${frappe.utils.escape_html(row.message || __("Unmatched"))}</span>`;
+    let status;
+    if (row.status === "matched") {
+      status = `<span class="indicator-pill green">${__("Matched")}</span>`;
+    } else if (row.status === "matched_uom_fallback") {
+      status = `<span class="indicator-pill yellow">${frappe.utils.escape_html(row.message)}</span>`;
+    } else {
+      status = `<span class="indicator-pill orange">${frappe.utils.escape_html(row.message || __("Unmatched"))}</span>`;
+    }
     return `<tr>
       <td>${frappe.utils.escape_html(row.description)}</td>
+      <td>${frappe.utils.escape_html(row.item_code || "-")}<br>
+        <small>${frappe.utils.escape_html(row.item_name || "")}</small></td>
       <td class="text-right">${frappe.utils.escape_html(String(row.qty))}</td>
       <td>${frappe.utils.escape_html(row.uom)}</td>
+      <td>${frappe.utils.escape_html(row.import_uom || "-")}</td>
       <td class="text-right">${format_currency(row.rate, frm.doc.currency)}</td>
       <td>${status}</td>
     </tr>`;
@@ -49,7 +58,7 @@ function show_import_preview(frm, data) {
       fieldname: "preview",
       options: `<p>${__("Order")}: <b>${frappe.utils.escape_html(data.order_no || __("Not found"))}</b></p>
         <div class="table-responsive"><table class="table table-bordered">
-        <thead><tr><th>${__("Description")}</th><th>${__("Qty")}</th><th>${__("UOM")}</th><th>${__("Rate")}</th><th>${__("Result")}</th></tr></thead>
+        <thead><tr><th>${__("PDF Description")}</th><th>${__("Item Match")}</th><th>${__("Qty")}</th><th>${__("PDF UOM")}</th><th>${__("UOM Used")}</th><th>${__("Rate")}</th><th>${__("Result")}</th></tr></thead>
         <tbody>${body}</tbody></table></div>`,
     }],
     primary_action_label: __("Add {0} Matched Items", [matched.length]),
@@ -60,7 +69,7 @@ function show_import_preview(frm, data) {
         await frappe.model.set_value(row.doctype, row.name, "item_code", source.item_code);
         await frappe.model.set_value(row.doctype, row.name, {
           qty: source.qty,
-          uom: source.uom,
+          uom: source.import_uom,
           rate: source.rate,
         });
       }

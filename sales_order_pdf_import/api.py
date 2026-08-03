@@ -51,14 +51,21 @@ def parse_and_match_pdf(file_url: str) -> dict:
 
     for row in parsed["rows"]:
         row.update(match_item(row["description"]))
-        if row["status"] == "matched" and not _item_supports_uom(
-            row["item_code"], row["stock_uom"], row["uom"]
-        ):
-            row.update(
-                status="unmatched",
-                item_code=None,
-                message=_("Item has no conversion for UOM {0}").format(row["uom"]),
-            )
+        if row["status"] == "matched":
+            row["import_uom"] = row["uom"]
+            if not _item_supports_uom(
+                row["item_code"], row["stock_uom"], row["uom"]
+            ):
+                # A valid Item match is still useful. Import with its stock UOM
+                # so ERPNext does not reject the Sales Order for a missing UOM
+                # conversion, and make the fallback explicit in the preview.
+                row.update(
+                    status="matched_uom_fallback",
+                    import_uom=row["stock_uom"],
+                    message=_(
+                        "Matched; no conversion for {0}. Using stock UOM {1}"
+                    ).format(row["uom"], row["stock_uom"]),
+                )
     return parsed
 
 
