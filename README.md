@@ -6,13 +6,46 @@ description to an enabled Item, and fills Item Code, Quantity, UOM, and Rate.
 
 ## Install on the ERPNext server
 
+Run these commands as the Linux user that owns the Bench. `--skip-assets` lets
+Bench register the app before Frappe tries to resolve its asset path; build the
+assets explicitly after installation.
+
 ```bash
 cd /path/to/frappe-bench
-bench get-app https://YOUR-GIT-URL/sales_order_pdf_import.git
+bench --site your-site.example backup --with-files
+bench get-app --skip-assets --branch main sales_order_pdf_import \
+  https://github.com/jryandechavez/erpnext-pdf-reader.git
 bench --site your-site.example install-app sales_order_pdf_import
 bench --site your-site.example migrate
 bench build --app sales_order_pdf_import
+bench --site your-site.example clear-cache
 bench restart
+bench --site your-site.example list-apps
+```
+
+### Recover from an interrupted `get-app`
+
+If the repository and Python package were installed but the asset build stopped
+before the app was registered, do not download it again. Add the app to
+`sites/apps.txt`, ensuring it starts on a new line:
+
+```bash
+cd /path/to/frappe-bench
+printf '\n' >> sites/apps.txt
+grep -qxF sales_order_pdf_import sites/apps.txt || \
+  printf '%s\n' sales_order_pdf_import >> sites/apps.txt
+bench build --app sales_order_pdf_import
+bench --site your-site.example install-app sales_order_pdf_import
+bench --site your-site.example migrate
+bench --site your-site.example clear-cache
+bench restart
+```
+
+If a previous manual append produced `hrmssales_order_pdf_import`, repair it
+before continuing:
+
+```bash
+sed -i 's/^hrmssales_order_pdf_import$/hrms\nsales_order_pdf_import/' sites/apps.txt
 ```
 
 The server must have `pypdf` installed; Bench installs it from this app's
