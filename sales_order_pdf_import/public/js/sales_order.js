@@ -28,11 +28,15 @@ frappe.ui.form.on("Sales Order", {
   },
 });
 
+function isImportableRow(row) {
+  return ["matched", "matched_uom_fallback"].includes(row.status);
+}
+
 function show_import_preview(frm, data) {
   const rows = data.rows || [];
-  const isImportable = (row) => ["matched", "matched_uom_fallback"].includes(row.status);
-  const matched = rows.filter(isImportable);
-  const body = rows.map((row) => {
+  const matched = rows.filter(isImportableRow);
+  const mismatched = rows.filter((row) => !isImportableRow(row));
+  const body = rows.map((row, index) => {
     let status;
     if (row.status === "matched") {
       status = `<span class="indicator-pill green">${__("Matched")}</span>`;
@@ -42,6 +46,7 @@ function show_import_preview(frm, data) {
       status = `<span class="indicator-pill orange">${frappe.utils.escape_html(row.message || __("Unmatched"))}</span>`;
     }
     return `<tr>
+      <td class="text-right">${index + 1}</td>
       <td>${frappe.utils.escape_html(row.description)}</td>
       <td>${frappe.utils.escape_html(row.item_code || "-")}<br>
         <small>${frappe.utils.escape_html(row.item_name || "")}</small></td>
@@ -60,8 +65,9 @@ function show_import_preview(frm, data) {
       fieldtype: "HTML",
       fieldname: "preview",
       options: `<p>${__("Order")}: <b>${frappe.utils.escape_html(data.order_no || __("Not found"))}</b></p>
+        <p>${__("Extracted")}: <b>${rows.length}</b> &nbsp; ${__("Matched")}: <b>${matched.length}</b> &nbsp; ${__("Mismatched")}: <b>${mismatched.length}</b></p>
         <div class="table-responsive"><table class="table table-bordered">
-        <thead><tr><th>${__("PDF Description")}</th><th>${__("Item Match")}</th><th>${__("Qty")}</th><th>${__("PDF UOM")}</th><th>${__("UOM Used")}</th><th>${__("Rate")}</th><th>${__("Result")}</th></tr></thead>
+        <thead><tr><th>${__("No.")}</th><th>${__("PDF Description")}</th><th>${__("Item Match")}</th><th>${__("Qty")}</th><th>${__("PDF UOM")}</th><th>${__("UOM Used")}</th><th>${__("Rate")}</th><th>${__("Result")}</th></tr></thead>
         <tbody>${body}</tbody></table></div>`,
     }],
     primary_action_label: __("Add {0} Matched Items", [matched.length]),
@@ -89,12 +95,20 @@ function show_import_preview(frm, data) {
   const downloadButton = $(
     `<button class="btn btn-default btn-sm">${__("Download Extracted CSV")}</button>`
   );
-  downloadButton.on("click", () => downloadExtractedCsv(data));
+  downloadButton.on("click", () => downloadExtractedCsv(data, false));
   dialog.get_primary_btn().before(downloadButton);
+
+  const mismatchButton = $(
+    `<button class="btn btn-default btn-sm">${__("Download Mismatched Items")}</button>`
+  );
+  mismatchButton.on("click", () => downloadExtractedCsv(data, true));
+  mismatchButton.prop("disabled", !mismatched.length);
+  dialog.get_primary_btn().before(mismatchButton);
 }
 
-function downloadExtractedCsv(data) {
+function downloadExtractedCsv(data, mismatchedOnly) {
   const headers = [
+    "No.",
     "PDF Description",
     "Matched Item Code",
     "Matched Item Name",
@@ -106,18 +120,22 @@ function downloadExtractedCsv(data) {
     "Status",
     "Result",
   ];
-  const values = (data.rows || []).map((row) => [
-    row.description,
-    row.item_code,
-    row.item_name,
-    row.qty,
-    row.uom,
-    row.import_uom,
-    row.rate,
-    row.amount,
-    row.status,
-    row.message,
-  ]);
+  const values = (data.rows || [])
+    .map((row, index) => ({ row, number: index + 1 }))
+    .filter(({ row }) => !mismatchedOnly || !isImportableRow(row))
+    .map(({ row, number }) => [
+      number,
+      row.description,
+      row.item_code,
+      row.item_name,
+      row.qty,
+      row.uom,
+      row.import_uom,
+      row.rate,
+      row.amount,
+      row.status,
+      row.message,
+    ]);
   const escapeCsv = (value) => {
     const safeValue = typeof value === "string" && /^[=+\-@]/.test(value)
       ? `'${value}`
@@ -131,9 +149,10 @@ function downloadExtractedCsv(data) {
   const url = URL.createObjectURL(blob);
   const orderNo = String(data.order_no || "purchase-order")
     .replace(/[^a-z0-9_-]+/gi, "-");
+  const fileType = mismatchedOnly ? "mismatched-items" : "extracted-items";
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${orderNo}-extracted-items.csv`;
+  link.download = `${orderNo}-${fileType}.csv`;
   document.body.appendChild(link);
   link.click();
   link.remove();

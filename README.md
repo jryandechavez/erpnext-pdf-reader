@@ -61,9 +61,11 @@ or ambiguous lines stay in the preview for manual resolution. As soon as the PDF
 is parsed successfully, its Order No. overwrites the Sales Order `po_no` field,
 including when that field already has a value or the preview is later closed.
 
-Choose **Download Extracted CSV** in the preview to download every extracted row
-and its matching result for review or archiving. The CSV includes matched and
-unmatched lines, quantity, PDF UOM, UOM used, rate, amount, status, and message.
+The preview shows sequential row numbers and extracted, matched, and mismatched
+counts. Choose **Download Extracted CSV** to download every row, or **Download
+Mismatched Items** to download only ambiguous and unmatched rows that will not be
+inserted. Both CSV files include quantity, PDF UOM, UOM used, rate, amount, status,
+and message.
 
 The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 `Line Dimensions` are intentionally ignored.
