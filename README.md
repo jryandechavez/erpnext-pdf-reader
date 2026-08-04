@@ -57,9 +57,9 @@ creating incorrect rows.
 
 Open a new or draft Sales Order and choose **Import Purchase Order PDF**. Select
 the PDF and confirm the preview. Only uniquely matched items are added. Unmatched
-or ambiguous lines stay in the preview for manual resolution. When the user
-confirms the import, the extracted Order No. is also written to the Sales Order
-`po_no` field.
+or ambiguous lines stay in the preview for manual resolution. As soon as the PDF
+is parsed successfully, its Order No. overwrites the Sales Order `po_no` field,
+including when that field already has a value or the preview is later closed.
 
 Choose **Download Extracted CSV** in the preview to download every extracted row
 and its matching result for review or archiving. The CSV includes matched and
