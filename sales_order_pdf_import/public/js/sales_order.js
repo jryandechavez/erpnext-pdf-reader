@@ -99,7 +99,10 @@ function show_import_preview(frm, data) {
   dialog.get_primary_btn().before(downloadButton);
 
   const mismatchButton = $(
-    `<button class="btn btn-default btn-sm">${__("Download Mismatched Items")}</button>`
+    `<button class="btn btn-default btn-sm">${__(
+      "Download Mismatched Items ({0})",
+      [mismatched.length]
+    )}</button>`
   );
   mismatchButton.on("click", () => downloadExtractedCsv(data, true));
   mismatchButton.prop("disabled", !mismatched.length);
