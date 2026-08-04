@@ -64,6 +64,9 @@ function show_import_preview(frm, data) {
     primary_action_label: __("Add {0} Matched Items", [matched.length]),
     primary_action: async () => {
       if (!matched.length) return;
+      if (data.order_no) {
+        await frm.set_value("po_no", data.order_no);
+      }
       for (const source of matched) {
         const row = frm.add_child("items");
         await frappe.model.set_value(row.doctype, row.name, "item_code", source.item_code);
