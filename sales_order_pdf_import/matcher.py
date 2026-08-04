@@ -25,6 +25,35 @@ def match_item(description: str) -> dict:
             "message": "No confident Item match",
         }
 
+    # Run exact case-insensitive matching before the limited fuzzy candidate
+    # query. This prevents a broad word such as "vegetable" from filling the
+    # candidate limit and hiding an exact Item Code or document name.
+    exact_text = strip_html(description or "").strip().casefold()
+    exact_matches = frappe.db.sql(
+        """
+        SELECT name, item_code, item_name, description, stock_uom
+        FROM `tabItem`
+        WHERE disabled = 0 AND (
+            LOWER(TRIM(item_name)) = %(exact)s
+            OR LOWER(TRIM(description)) = %(exact)s
+            OR LOWER(TRIM(item_code)) = %(exact)s
+            OR LOWER(TRIM(name)) = %(exact)s
+        )
+        ORDER BY CASE
+            WHEN LOWER(TRIM(item_name)) = %(exact)s THEN 1
+            WHEN LOWER(TRIM(description)) = %(exact)s THEN 2
+            WHEN LOWER(TRIM(item_code)) = %(exact)s THEN 3
+            WHEN LOWER(TRIM(name)) = %(exact)s THEN 4
+            ELSE 5
+        END, name ASC
+        LIMIT 1
+        """,
+        {"exact": exact_text},
+        as_dict=True,
+    )
+    if exact_matches:
+        return _match_result(exact_matches[0], 1.0)
+
     # LOWER makes candidate retrieval case-insensitive even if the database uses
     # a case-sensitive collation. Final similarity scoring is also normalized.
     clauses = []
@@ -90,11 +119,15 @@ def match_item(description: str) -> dict:
             "message": "No confident Item match",
         }
     _, best_score, best = scored[0]
+    return _match_result(best, best_score)
+
+
+def _match_result(item, score: float) -> dict:
     return {
         "status": "matched",
-        "item_code": best.item_code or best.name,
-        "item_name": best.item_name,
-        "stock_uom": best.stock_uom,
-        "match_score": round(best_score, 3),
+        "item_code": item.item_code or item.name,
+        "item_name": item.item_name,
+        "stock_uom": item.stock_uom,
+        "match_score": round(score, 3),
         "message": "Matched",
     }

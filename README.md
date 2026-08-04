@@ -84,6 +84,8 @@ PDF `No.` column is used only to detect row boundaries and is not imported or
 included in the CSV. An exact normalized description wins. Fuzzy matches must score
 at least 0.78; the highest-scoring enabled Item is selected deterministically.
 Exact-match priority follows `item_name`, `description`, `item_code`, then `name`.
+Exact enabled matches are queried before the fuzzy-search candidate limit, so broad
+description words cannot hide an exact Item Code or document name.
 Description and UOM matching are case-insensitive, so values such as `kg`, `Kg`,
 and `KG` resolve to the same configured UOM.
 
