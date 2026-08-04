@@ -67,6 +67,9 @@ unmatched lines, quantity, PDF UOM, UOM used, rate, amount, status, and message.
 
 The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 `Line Dimensions` are intentionally ignored.
+`Ship-to Address`, totals, header dimensions, acknowledgement certificate details,
+and the input-tax disclaimer are hard description boundaries and are never included
+in an Item description.
 
 ## Matching safety
 

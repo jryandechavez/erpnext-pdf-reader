@@ -27,6 +27,31 @@ class TestParser(unittest.TestCase):
         self.assertEqual(result["rows"][2]["uom"], "PC3")
         self.assertEqual(result["rows"][2]["rate"], 7.0)
 
+    def test_footer_sections_never_become_description(self):
+        footers = [
+            """Ship-to Address
+Central Kitchen
+Pasay City
+Acknowledgement Certificate No.: AC_125_052026_000635
+THIS DOCUMENT IS NOT VALID FOR CLAIM OF INPUT TAX""",
+            """Acknowledgement Certificate No.: AC_125_052026_000635
+Date Issued: 05/01/2026
+THIS DOCUMENT IS NOT VALID FOR CLAIM OF INPUT TAX""",
+        ]
+        for footer in footers:
+            with self.subTest(footer=footer.splitlines()[0]):
+                text = (
+                    "A00013322 Grocery Boiled Tapioca 2 KG 80.00 Yes 160.00\n"
+                    "Violet\n"
+                    f"{footer}\n"
+                )
+                result = parse_purchase_order(text)
+                self.assertEqual(len(result["rows"]), 1)
+                self.assertEqual(
+                    result["rows"][0]["description"],
+                    "Grocery Boiled Tapioca Violet",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
