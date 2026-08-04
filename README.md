@@ -69,6 +69,12 @@ While matched rows are being inserted, all dialog actions are disabled, the main
 button displays `Adding X of Y...`, and a progress indicator reports each completed
 Sales Order line. Completion and partial-failure messages remain visible.
 
+Unmatched rows include **Select Item**, which opens an Item Link restricted to
+enabled Items. A manual selection is validated on the server, its UOM or stock-UOM
+fallback is shown immediately, the matched/mismatched counts are refreshed, and the
+row becomes eligible for **Add Matched Items**. Manually mapped rows can be changed
+again and are identified in CSV downloads.
+
 The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 `Line Dimensions` are intentionally ignored.
 `Ship-to Address`, totals, header dimensions, acknowledgement certificate details,

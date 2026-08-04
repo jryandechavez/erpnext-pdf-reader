@@ -72,6 +72,41 @@ def parse_and_match_pdf(file_url: str) -> dict:
     return parsed
 
 
+@frappe.whitelist()
+def get_manual_item_match(item_code: str, pdf_uom: str) -> dict:
+    """Validate a user-selected enabled Item and return its import UOM."""
+    item = frappe.get_doc("Item", item_code)
+    if not item.has_permission("read"):
+        frappe.throw(
+            _("You do not have permission to read Item {0}.").format(item_code),
+            frappe.PermissionError,
+        )
+    if item.disabled:
+        frappe.throw(_("Item {0} is disabled.").format(item_code))
+
+    canonical_uom = _resolve_uom(pdf_uom)
+    result = {
+        "status": "matched_manual",
+        "item_code": item.name,
+        "item_name": item.item_name,
+        "stock_uom": item.stock_uom,
+        "import_uom": canonical_uom or pdf_uom,
+        "match_score": None,
+        "message": _("Manually matched"),
+    }
+    if not canonical_uom or not _item_supports_uom(
+        item.name, item.stock_uom, canonical_uom
+    ):
+        result.update(
+            status="matched_manual_uom_fallback",
+            import_uom=item.stock_uom,
+            message=_(
+                "Manually matched; no conversion for {0}. Using stock UOM {1}"
+            ).format(pdf_uom, item.stock_uom),
+        )
+    return result
+
+
 def _resolve_uom(pdf_uom: str) -> str | None:
     """Return the canonical ERPNext UOM name without case sensitivity."""
     wanted = (pdf_uom or "").strip().casefold()
