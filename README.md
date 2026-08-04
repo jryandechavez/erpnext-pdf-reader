@@ -70,9 +70,11 @@ The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 
 ## Matching safety
 
-Descriptions are normalized and compared with `Item.item_name` and the plain-text
-version of `Item.description`. An exact normalized description wins. Fuzzy matches
-must score at least 0.78 and must be at least 0.05 better than the runner-up.
+PDF descriptions are normalized and compared with `Item.item_name`, the plain-text
+version of `Item.description`, `Item.item_code`, and the Item document `name`. The
+PDF `No.` column is used only to detect row boundaries and is not imported or
+included in the CSV. An exact normalized description wins. Fuzzy matches must score
+at least 0.78 and must be at least 0.05 better than the runner-up.
 Description and UOM matching are case-insensitive, so values such as `kg`, `Kg`,
 and `KG` resolve to the same configured UOM.
 

@@ -95,7 +95,6 @@ function show_import_preview(frm, data) {
 
 function downloadExtractedCsv(data) {
   const headers = [
-    "Source Code",
     "PDF Description",
     "Matched Item Code",
     "Matched Item Name",
@@ -108,7 +107,6 @@ function downloadExtractedCsv(data) {
     "Result",
   ];
   const values = (data.rows || []).map((row) => [
-    row.source_code,
     row.description,
     row.item_code,
     row.item_name,

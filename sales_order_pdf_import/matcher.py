@@ -18,7 +18,7 @@ def normalize(value: str) -> str:
 
 def match_item(description: str) -> dict:
     normalized = normalize(description)
-    terms = [term for term in normalized.split() if len(term) >= 4][:4]
+    terms = [term for term in normalized.split() if len(term) >= 2][:4]
     if not terms:
         return {
             "status": "unmatched",
@@ -33,12 +33,15 @@ def match_item(description: str) -> dict:
     for index, term in enumerate(terms):
         key = f"term_{index}"
         clauses.append(
-            f"(LOWER(item_name) LIKE %({key})s OR LOWER(description) LIKE %({key})s)"
+            f"(LOWER(item_name) LIKE %({key})s "
+            f"OR LOWER(description) LIKE %({key})s "
+            f"OR LOWER(item_code) LIKE %({key})s "
+            f"OR LOWER(name) LIKE %({key})s)"
         )
         values[key] = f"%{term}%"
     candidates = frappe.db.sql(
         f"""
-        SELECT name, item_name, description, stock_uom
+        SELECT name, item_code, item_name, description, stock_uom
         FROM `tabItem`
         WHERE disabled = 0 AND ({" OR ".join(clauses)})
         LIMIT 100
@@ -48,7 +51,12 @@ def match_item(description: str) -> dict:
     )
     scored = []
     for item in candidates:
-        item_values = [normalize(item.item_name), normalize(item.description)]
+        item_values = [
+            normalize(item.item_name),
+            normalize(item.description),
+            normalize(item.item_code),
+            normalize(item.name),
+        ]
         score = max(
             SequenceMatcher(None, normalized, value).ratio()
             for value in item_values
@@ -72,7 +80,7 @@ def match_item(description: str) -> dict:
     best_score, best = scored[0]
     return {
         "status": "matched",
-        "item_code": best.name,
+        "item_code": best.item_code or best.name,
         "item_name": best.item_name,
         "stock_uom": best.stock_uom,
         "match_score": round(best_score, 3),

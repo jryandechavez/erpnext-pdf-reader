@@ -22,6 +22,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(result["order_no"], "POR10000719")
         self.assertEqual(len(result["rows"]), 3)
         self.assertEqual(result["rows"][0]["description"], "Grocery Glutinous Rice Generic (Galapong)")
+        self.assertNotIn("source_code", result["rows"][0])
         self.assertEqual(result["rows"][1]["qty"], 2.0)
         self.assertEqual(result["rows"][2]["uom"], "PC3")
         self.assertEqual(result["rows"][2]["rate"], 7.0)

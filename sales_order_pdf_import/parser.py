@@ -45,12 +45,11 @@ def parse_purchase_order(text: str) -> dict:
         start = ITEM_START.match(line)
         if start:
             finish()
-            source_code, remainder = start.groups()
+            _, remainder = start.groups()
             values = ROW_VALUES.match(remainder)
             if not values:
                 continue
             current = {
-                "source_code": source_code.upper(),
                 "description_parts": [values.group("description")],
                 "qty": _number(values.group("qty")),
                 "uom": values.group("uom").upper(),
