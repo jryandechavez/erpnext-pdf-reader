@@ -63,9 +63,8 @@ including when that field already has a value or the preview is later closed.
 
 The preview shows sequential row numbers and extracted, matched, and mismatched
 counts. Choose **Download Extracted CSV** to download every row, or **Download
-Mismatched Items** to download only ambiguous and unmatched rows that will not be
-inserted. Both CSV files include quantity, PDF UOM, UOM used, rate, amount, status,
-and message.
+Mismatched Items** to download only unmatched rows that will not be inserted. Both
+CSV files include quantity, PDF UOM, UOM used, rate, amount, status, and message.
 
 The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 `Line Dimensions` are intentionally ignored.
@@ -79,7 +78,8 @@ PDF descriptions are normalized and compared with `Item.item_name`, the plain-te
 version of `Item.description`, `Item.item_code`, and the Item document `name`. The
 PDF `No.` column is used only to detect row boundaries and is not imported or
 included in the CSV. An exact normalized description wins. Fuzzy matches must score
-at least 0.78 and must be at least 0.05 better than the runner-up.
+at least 0.78; the highest-scoring enabled Item is selected deterministically.
+Exact-match priority follows `item_name`, `description`, `item_code`, then `name`.
 Description and UOM matching are case-insensitive, so values such as `kg`, `Kg`,
 and `KG` resolve to the same configured UOM.
 

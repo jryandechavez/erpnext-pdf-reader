@@ -7,7 +7,6 @@ import frappe
 from frappe.utils import strip_html
 
 MATCH_THRESHOLD = 0.78
-AMBIGUITY_GAP = 0.05
 
 
 def normalize(value: str) -> str:
@@ -44,6 +43,7 @@ def match_item(description: str) -> dict:
         SELECT name, item_code, item_name, description, stock_uom
         FROM `tabItem`
         WHERE disabled = 0 AND ({" OR ".join(clauses)})
+        ORDER BY name ASC
         LIMIT 100
         """,
         values,
@@ -51,33 +51,45 @@ def match_item(description: str) -> dict:
     )
     scored = []
     for item in candidates:
+        # This is the requested exact-match priority. Any exact normalized match
+        # wins over all fuzzy matches; duplicate exact matches resolve by Item
+        # name because the query order is deterministic.
         item_values = [
             normalize(item.item_name),
             normalize(item.description),
             normalize(item.item_code),
             normalize(item.name),
         ]
+        exact_priority = next(
+            (
+                index
+                for index, value in enumerate(item_values)
+                if value and value == normalized
+            ),
+            len(item_values),
+        )
         score = max(
             SequenceMatcher(None, normalized, value).ratio()
             for value in item_values
             if value
         )
-        scored.append((score, item))
-    scored.sort(key=lambda value: value[0], reverse=True)
+        scored.append((exact_priority, score, item))
+    scored.sort(
+        key=lambda value: (
+            value[0] == 4,
+            value[0],
+            -value[1],
+            normalize(value[2].name),
+        )
+    )
 
-    if not scored or scored[0][0] < MATCH_THRESHOLD:
+    if not scored or (scored[0][0] == 4 and scored[0][1] < MATCH_THRESHOLD):
         return {
             "status": "unmatched",
             "item_code": None,
             "message": "No confident Item match",
         }
-    if len(scored) > 1 and scored[0][0] - scored[1][0] < AMBIGUITY_GAP:
-        return {
-            "status": "ambiguous",
-            "item_code": None,
-            "message": "Multiple similar Items found",
-        }
-    best_score, best = scored[0]
+    _, best_score, best = scored[0]
     return {
         "status": "matched",
         "item_code": best.item_code or best.name,
