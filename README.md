@@ -88,6 +88,9 @@ Exact enabled matches are queried before the fuzzy-search candidate limit, so br
 description words cannot hide an exact Item Code or document name.
 Description and UOM matching are case-insensitive, so values such as `kg`, `Kg`,
 and `KG` resolve to the same configured UOM.
+Number-unit spacing is normalized (`5kg` equals `5 kg`), and fuzzy candidates are
+ranked by the number of PDF-description terms they contain before the limit is
+applied. This keeps specific Items ahead of broad matches such as `vegetable`.
 
 The preview displays the matched Item, PDF UOM, UOM used by ERPNext, and match
 result. If an Item matches but its PDF UOM has no configured conversion, the line

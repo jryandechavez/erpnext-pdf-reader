@@ -12,7 +12,10 @@ MATCH_THRESHOLD = 0.78
 def normalize(value: str) -> str:
     value = strip_html(value or "").casefold()
     value = re.sub(r"[^a-z0-9]+", " ", value)
-    return " ".join(value.split())
+    value = " ".join(value.split())
+    # Treat compact and spaced number-unit forms as equivalent: 5kg == 5 kg,
+    # 30pcs == 30 pcs, and 4-5kg == 4-5 kg after punctuation normalization.
+    return re.sub(r"(?<=\d)\s+(?=[a-z])", "", value)
 
 
 def match_item(description: str) -> dict:
@@ -67,12 +70,15 @@ def match_item(description: str) -> dict:
             f"OR LOWER(name) LIKE %({key})s)"
         )
         values[key] = f"%{term}%"
+    relevance = " + ".join(
+        f"(CASE WHEN {clause} THEN 1 ELSE 0 END)" for clause in clauses
+    )
     candidates = frappe.db.sql(
         f"""
         SELECT name, item_code, item_name, description, stock_uom
         FROM `tabItem`
         WHERE disabled = 0 AND ({" OR ".join(clauses)})
-        ORDER BY name ASC
+        ORDER BY ({relevance}) DESC, name ASC
         LIMIT 100
         """,
         values,
