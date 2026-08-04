@@ -65,6 +65,9 @@ The preview shows sequential row numbers and extracted, matched, and mismatched
 counts. Choose **Download Extracted CSV** to download every row, or **Download
 Mismatched Items** to download only unmatched rows that will not be inserted. Both
 CSV files include quantity, PDF UOM, UOM used, rate, amount, status, and message.
+While matched rows are being inserted, all dialog actions are disabled, the main
+button displays `Adding X of Y...`, and a progress indicator reports each completed
+Sales Order line. Completion and partial-failure messages remain visible.
 
 The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 `Line Dimensions` are intentionally ignored.

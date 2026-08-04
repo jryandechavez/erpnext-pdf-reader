@@ -73,20 +73,58 @@ function show_import_preview(frm, data) {
     primary_action_label: __("Add {0} Matched Items", [matched.length]),
     primary_action: async () => {
       if (!matched.length) return;
-      for (const source of matched) {
-        const row = frm.add_child("items");
-        await frappe.model.set_value(row.doctype, row.name, "item_code", source.item_code);
-        await frappe.model.set_value(row.doctype, row.name, {
-          qty: source.qty,
-          uom: source.import_uom,
-          rate: source.rate,
+      const primaryButton = dialog.get_primary_btn();
+      const actionButtons = dialog.$wrapper.find(".modal-footer button");
+      const originalLabel = __("Add {0} Matched Items", [matched.length]);
+      let added = 0;
+
+      actionButtons.prop("disabled", true);
+      frappe.show_progress(__("Adding Sales Order Items"), 0, matched.length);
+      try {
+        for (const [index, source] of matched.entries()) {
+          primaryButton.text(__("Adding {0} of {1}...", [index + 1, matched.length]));
+          const row = frm.add_child("items");
+          await frappe.model.set_value(row.doctype, row.name, "item_code", source.item_code);
+          await frappe.model.set_value(row.doctype, row.name, {
+            qty: source.qty,
+            uom: source.import_uom,
+            rate: source.rate,
+          });
+          added = index + 1;
+          frappe.show_progress(
+            __("Adding Sales Order Items"),
+            added,
+            matched.length,
+            __("Added {0} of {1}", [added, matched.length])
+          );
+        }
+        frm.refresh_field("items");
+        dialog.hide();
+        frappe.show_alert({ message: __(
+          "Added {0} item(s). Review totals before saving.", [matched.length]
+        ), indicator: "green" }, 7);
+      } catch (error) {
+        frm.refresh_field("items");
+        frappe.msgprint({
+          title: __("Item Import Stopped"),
+          indicator: "red",
+          message: __(
+            "Added {0} of {1} items before an error occurred: {2}",
+            [
+              added,
+              matched.length,
+              frappe.utils.escape_html(error.message || String(error)),
+            ]
+          ),
         });
+      } finally {
+        frappe.hide_progress();
+        if (dialog.display) {
+          actionButtons.prop("disabled", false);
+          mismatchButton.prop("disabled", !mismatched.length);
+          primaryButton.text(originalLabel);
+        }
       }
-      frm.refresh_field("items");
-      dialog.hide();
-      frappe.show_alert({ message: __(
-        "Added {0} item(s). Review totals before saving.", [matched.length]
-      ), indicator: "green" });
     },
   });
   if (!matched.length) dialog.get_primary_btn().prop("disabled", true);
