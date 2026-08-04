@@ -52,6 +52,28 @@ THIS DOCUMENT IS NOT VALID FOR CLAIM OF INPUT TAX""",
                     "Grocery Boiled Tapioca Violet",
                 )
 
+    def test_repeated_page_footer_does_not_stop_later_pages(self):
+        text = """Order No. POR10041892
+A00000001 First Item 1 KG 10.00 Yes 10.00
+Acknowledgement Certificate No.: AC_125_052026_000635
+THIS DOCUMENT IS NOT VALID FOR CLAIM OF INPUT TAX
+\fPurchase Order Page 2
+A00000002 Second Item 2 KG 20.00 Yes 40.00
+Acknowledgement Certificate No.: AC_125_052026_000635
+\fPurchase Order Page 3
+A00000003 Third Item 3 KG 30.00 Yes 90.00
+Total PHP 140.00
+Ship-to Address
+Pasay City
+"""
+        result = parse_purchase_order(text)
+        self.assertEqual(result["order_no"], "POR10041892")
+        self.assertEqual(len(result["rows"]), 3)
+        self.assertEqual(
+            [row["description"] for row in result["rows"]],
+            ["First Item", "Second Item", "Third Item"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,7 +31,6 @@ def parse_purchase_order(text: str) -> dict:
     next product number, or a totals/address/footer boundary. Values always come
     from the product's first line.
     """
-    lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines()]
     order_match = re.search(r"Order No\.\s+(\S+)", text, re.IGNORECASE)
     rows = []
     current = None
@@ -43,31 +42,36 @@ def parse_purchase_order(text: str) -> dict:
             rows.append(current)
             current = None
 
-    for line in lines:
-        if not line:
-            continue
-        if DESCRIPTION_END.match(line):
-            finish()
-            break
-        if line.lower().startswith("line dimensions"):
-            finish()
-            continue
-        start = ITEM_START.match(line)
-        if start:
-            finish()
-            _, remainder = start.groups()
-            values = ROW_VALUES.match(remainder)
-            if not values:
+    for page_text in text.split("\f"):
+        lines = [
+            re.sub(r"\s+", " ", line).strip()
+            for line in page_text.splitlines()
+        ]
+        for line in lines:
+            if not line:
                 continue
-            current = {
-                "description_parts": [values.group("description")],
-                "qty": _number(values.group("qty")),
-                "uom": values.group("uom").upper(),
-                "rate": _number(values.group("rate")),
-                "amount": _number(values.group("amount")),
-            }
-            continue
-        if current:
-            current["description_parts"].append(line)
-    finish()
+            if DESCRIPTION_END.match(line):
+                finish()
+                break
+            if line.lower().startswith("line dimensions"):
+                finish()
+                continue
+            start = ITEM_START.match(line)
+            if start:
+                finish()
+                _, remainder = start.groups()
+                values = ROW_VALUES.match(remainder)
+                if not values:
+                    continue
+                current = {
+                    "description_parts": [values.group("description")],
+                    "qty": _number(values.group("qty")),
+                    "uom": values.group("uom").upper(),
+                    "rate": _number(values.group("rate")),
+                    "amount": _number(values.group("amount")),
+                }
+                continue
+            if current:
+                current["description_parts"].append(line)
+        finish()
     return {"order_no": order_match.group(1) if order_match else None, "rows": rows}

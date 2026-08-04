@@ -29,7 +29,9 @@ def parse_and_match_pdf(file_url: str) -> dict:
             frappe.throw(_("The PDF must have 20 pages or fewer."))
         # Layout mode preserves table columns. Plain pypdf extraction emits each
         # cell separately and loses the relationship between qty/UOM/rate.
-        text = "\n".join(
+        # Form-feed preserves page boundaries so the parser can skip a repeated
+        # footer and continue with the Item table on the following page.
+        text = "\f".join(
             page.extract_text(
                 extraction_mode="layout", layout_mode_space_vertically=False
             )

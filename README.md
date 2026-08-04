@@ -70,7 +70,8 @@ The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 `Line Dimensions` are intentionally ignored.
 `Ship-to Address`, totals, header dimensions, acknowledgement certificate details,
 and the input-tax disclaimer are hard description boundaries and are never included
-in an Item description.
+in an Item description. On multi-page PDFs, repeated page footers are skipped and
+parsing resumes with the Item table on the next page.
 
 ## Matching safety
 
