@@ -67,6 +67,8 @@ The supplied Tic and Terry/TBG sample layout is supported. Lines beginning with
 Descriptions are normalized and compared with `Item.item_name` and the plain-text
 version of `Item.description`. An exact normalized description wins. Fuzzy matches
 must score at least 0.78 and must be at least 0.05 better than the runner-up.
+Description and UOM matching are case-insensitive, so values such as `kg`, `Kg`,
+and `KG` resolve to the same configured UOM.
 
 The preview displays the matched Item, PDF UOM, UOM used by ERPNext, and match
 result. If an Item matches but its PDF UOM has no configured conversion, the line

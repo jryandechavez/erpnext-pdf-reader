@@ -52,9 +52,10 @@ def parse_and_match_pdf(file_url: str) -> dict:
     for row in parsed["rows"]:
         row.update(match_item(row["description"]))
         if row["status"] == "matched":
-            row["import_uom"] = row["uom"]
-            if not _item_supports_uom(
-                row["item_code"], row["stock_uom"], row["uom"]
+            canonical_uom = _resolve_uom(row["uom"])
+            row["import_uom"] = canonical_uom or row["uom"]
+            if not canonical_uom or not _item_supports_uom(
+                row["item_code"], row["stock_uom"], canonical_uom
             ):
                 # A valid Item match is still useful. Import with its stock UOM
                 # so ERPNext does not reject the Sales Order for a missing UOM
@@ -69,10 +70,21 @@ def parse_and_match_pdf(file_url: str) -> dict:
     return parsed
 
 
+def _resolve_uom(pdf_uom: str) -> str | None:
+    """Return the canonical ERPNext UOM name without case sensitivity."""
+    wanted = (pdf_uom or "").strip().casefold()
+    return next(
+        (
+            uom
+            for uom in frappe.get_all("UOM", pluck="name")
+            if uom.strip().casefold() == wanted
+        ),
+        None,
+    )
+
+
 def _item_supports_uom(item_code: str, stock_uom: str, pdf_uom: str) -> bool:
-    if not frappe.db.exists("UOM", pdf_uom):
-        return False
-    if stock_uom == pdf_uom:
+    if stock_uom.strip().casefold() == pdf_uom.strip().casefold():
         return True
     return bool(
         frappe.db.exists(
