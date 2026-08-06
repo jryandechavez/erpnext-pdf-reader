@@ -3,7 +3,11 @@ from __future__ import annotations
 import re
 from decimal import Decimal, InvalidOperation
 
-ITEM_START = re.compile(r"^(A\d{8})\s+(.+)$", re.IGNORECASE)
+# Some report variants wrap the eighth Item-number digit into the next visual
+# line because the No. column is too narrow. The number is only a row boundary,
+# so accept either seven or eight digits after A.
+ITEM_START = re.compile(r"^(A\d{7,8})\s+(.+)$", re.IGNORECASE)
+ITEM_NUMBER_CONTINUATION = re.compile(r"^\d(?:\s+(.*))?$")
 DESCRIPTION_END = re.compile(
     r"^(?:Total\s+PHP|Ship-to Address|Header Dimensions|"
     r"Acknowledgement Certificate No\.:|"
@@ -72,6 +76,14 @@ def parse_purchase_order(text: str) -> dict:
                 }
                 continue
             if current:
-                current["description_parts"].append(line)
+                continuation = ITEM_NUMBER_CONTINUATION.match(line)
+                if continuation:
+                    # Discard the wrapped final Item-number digit but retain any
+                    # description text that shares its extracted line.
+                    description = (continuation.group(1) or "").strip()
+                    if description:
+                        current["description_parts"].append(description)
+                else:
+                    current["description_parts"].append(line)
         finish()
     return {"order_no": order_match.group(1) if order_match else None, "rows": rows}

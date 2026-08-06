@@ -74,6 +74,21 @@ Pasay City
             ["First Item", "Second Item", "Third Item"],
         )
 
+    def test_wrapped_eighth_item_number_digit_is_not_description(self):
+        text = """Order No. POR10000182
+A0000007 Vegetable Carrots Trimmed 1 KG 100.00 Yes 100.00
+8 Fresh
+A0000015 Vegetable Garlic Peeled 0.5 KG 150.00 Yes 75.00
+4 Fresh
+Total PHP 175.00
+"""
+        result = parse_purchase_order(text)
+        self.assertEqual(len(result["rows"]), 2)
+        self.assertEqual(
+            [row["description"] for row in result["rows"]],
+            ["Vegetable Carrots Trimmed Fresh", "Vegetable Garlic Peeled Fresh"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

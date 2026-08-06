@@ -97,6 +97,9 @@ and `KG` resolve to the same configured UOM.
 Number-unit spacing is normalized (`5kg` equals `5 kg`), and fuzzy candidates are
 ranked by the number of PDF-description terms they contain before the limit is
 applied. This keeps specific Items ahead of broad matches such as `vegetable`.
+Report variants where the narrow `No.` column wraps the eighth Item-number digit
+onto a description continuation line are also supported; that digit is discarded
+and never becomes part of the Item description.
 
 The preview displays the matched Item, PDF UOM, UOM used by ERPNext, and match
 result. If an Item matches but its PDF UOM has no configured conversion, the line
