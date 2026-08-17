@@ -29,21 +29,16 @@ frappe.ui.form.on("Sales Order", {
 });
 
 function isImportableRow(row) {
-  return [
-    "matched",
-    "matched_uom_fallback",
-    "matched_manual",
-    "matched_manual_uom_fallback",
-  ].includes(row.status);
+  return Boolean(row.status && row.status.startsWith("matched"));
 }
 
 function renderMatchStatus(row) {
-  if (["matched", "matched_manual"].includes(row.status)) {
-    const label = row.status === "matched_manual" ? __("Manually Matched") : __("Matched");
-    return `<span class="indicator-pill green">${label}</span>`;
-  }
-  if (["matched_uom_fallback", "matched_manual_uom_fallback"].includes(row.status)) {
+  if (row.status && (row.status.includes("warning") || row.status.includes("fallback"))) {
     return `<span class="indicator-pill yellow">${frappe.utils.escape_html(row.message)}</span>`;
+  }
+  if (isImportableRow(row)) {
+    const label = row.status.includes("manual") ? __("Manually Matched") : __("Matched");
+    return `<span class="indicator-pill green">${label}</span>`;
   }
   return `<span class="indicator-pill orange">${frappe.utils.escape_html(
     row.message || __("Unmatched")
@@ -51,7 +46,7 @@ function renderMatchStatus(row) {
 }
 
 function renderItemMatch(row, index) {
-  const canMap = !["matched", "matched_uom_fallback"].includes(row.status);
+  const canMap = !isImportableRow(row) || row.status.includes("manual");
   const button = canMap
     ? `<br><button type="button" class="btn btn-xs btn-default manual-item-map" data-row-index="${index}">${__(
       isImportableRow(row) ? "Change Item" : "Select Item"
@@ -199,7 +194,11 @@ function show_import_preview(frm, data) {
       async (values) => {
         const response = await frappe.call({
           method: "sales_order_pdf_import.api.get_manual_item_match",
-          args: { item_code: values.item_code, pdf_uom: row.uom },
+          args: {
+            item_code: values.item_code,
+            pdf_uom: row.uom,
+            missing_rate: row.missing_rate ? 1 : 0,
+          },
           freeze: true,
           freeze_message: __("Validating selected Item..."),
         });

@@ -4,6 +4,7 @@ from io import BytesIO
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 from pypdf import PdfReader
 
 from sales_order_pdf_import.parser import parse_purchase_order
@@ -54,6 +55,7 @@ def parse_and_match_pdf(file_url: str) -> dict:
     for row in parsed["rows"]:
         row.update(match_item(row["description"]))
         if row["status"] == "matched":
+            warnings = []
             canonical_uom = _resolve_uom(row["uom"])
             row["import_uom"] = canonical_uom or row["uom"]
             if not canonical_uom or not _item_supports_uom(
@@ -62,18 +64,26 @@ def parse_and_match_pdf(file_url: str) -> dict:
                 # A valid Item match is still useful. Import with its stock UOM
                 # so ERPNext does not reject the Sales Order for a missing UOM
                 # conversion, and make the fallback explicit in the preview.
+                row["import_uom"] = row["stock_uom"]
+                warnings.append(
+                    _("No conversion for {0}. Using stock UOM {1}").format(
+                        row["uom"], row["stock_uom"]
+                    )
+                )
+            if row.get("missing_rate"):
+                warnings.append(
+                    _("PDF rate and amount are blank. Using rate 0; review before saving")
+                )
+            if warnings:
                 row.update(
-                    status="matched_uom_fallback",
-                    import_uom=row["stock_uom"],
-                    message=_(
-                        "Matched; no conversion for {0}. Using stock UOM {1}"
-                    ).format(row["uom"], row["stock_uom"]),
+                    status="matched_with_warning",
+                    message=_("Matched; {0}").format("; ".join(warnings)),
                 )
     return parsed
 
 
 @frappe.whitelist()
-def get_manual_item_match(item_code: str, pdf_uom: str) -> dict:
+def get_manual_item_match(item_code: str, pdf_uom: str, missing_rate: int = 0) -> dict:
     """Validate a user-selected enabled Item and return its import UOM."""
     item = frappe.get_doc("Item", item_code)
     if not item.has_permission("read"):
@@ -94,15 +104,24 @@ def get_manual_item_match(item_code: str, pdf_uom: str) -> dict:
         "match_score": None,
         "message": _("Manually matched"),
     }
+    warnings = []
     if not canonical_uom or not _item_supports_uom(
         item.name, item.stock_uom, canonical_uom
     ):
+        result["import_uom"] = item.stock_uom
+        warnings.append(
+            _("No conversion for {0}. Using stock UOM {1}").format(
+                pdf_uom, item.stock_uom
+            )
+        )
+    if cint(missing_rate):
+        warnings.append(
+            _("PDF rate and amount are blank. Using rate 0; review before saving")
+        )
+    if warnings:
         result.update(
-            status="matched_manual_uom_fallback",
-            import_uom=item.stock_uom,
-            message=_(
-                "Manually matched; no conversion for {0}. Using stock UOM {1}"
-            ).format(pdf_uom, item.stock_uom),
+            status="matched_manual_with_warning",
+            message=_("Manually matched; {0}").format("; ".join(warnings)),
         )
     return result
 

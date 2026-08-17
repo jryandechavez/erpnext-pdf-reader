@@ -89,6 +89,24 @@ Total PHP 175.00
             ["Vegetable Carrots Trimmed Fresh", "Vegetable Garlic Peeled Fresh"],
         )
 
+    def test_blank_price_rows_are_retained_with_zero_rate(self):
+        text = """Order No. POR100107266
+A0000008 Vegetable Celery Fresh 0.3 KG Yes
+0 (Trimmed)
+A0000002 Fruit Banana Lakatan Ripe 2 KG Yes
+4 Fresh
+Total PHP 0.00
+"""
+        result = parse_purchase_order(text)
+        self.assertEqual(len(result["rows"]), 2)
+        self.assertEqual(
+            [row["description"] for row in result["rows"]],
+            ["Vegetable Celery Fresh (Trimmed)", "Fruit Banana Lakatan Ripe Fresh"],
+        )
+        self.assertTrue(all(row["missing_rate"] for row in result["rows"]))
+        self.assertTrue(all(row["rate"] == 0.0 for row in result["rows"]))
+        self.assertTrue(all(row["amount"] == 0.0 for row in result["rows"]))
+
 
 if __name__ == "__main__":
     unittest.main()

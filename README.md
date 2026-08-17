@@ -105,6 +105,10 @@ The preview displays the matched Item, PDF UOM, UOM used by ERPNext, and match
 result. If an Item matches but its PDF UOM has no configured conversion, the line
 remains importable using the Item's stock UOM. The PDF quantity and rate are kept,
 and the preview shows a warning so the user can review the units and pricing.
+Rows that contain a description, quantity, and UOM but have blank rate and amount
+are also retained. They use rate and amount `0`, remain eligible for import after
+item matching, and display a yellow warning for review before the Sales Order is
+saved.
 
 ## Tests
 

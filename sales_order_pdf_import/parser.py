@@ -19,6 +19,11 @@ ROW_VALUES = re.compile(
     r"(?P<uom>[A-Za-z][A-Za-z0-9]*)\s+(?P<rate>[\d,]+(?:\.\d+)?)"
     r"(?:\s+.*)?\s+(?P<amount>[\d,]+(?:\.\d+)?)$"
 )
+ROW_VALUES_WITHOUT_PRICE = re.compile(
+    r"^(?P<description>.*?)\s+(?P<qty>\d+(?:\.\d+)?)\s+"
+    r"(?P<uom>[A-Za-z][A-Za-z0-9]*)\s+Yes\s*$",
+    re.IGNORECASE,
+)
 
 
 def _number(value: str) -> float:
@@ -65,14 +70,19 @@ def parse_purchase_order(text: str) -> dict:
                 finish()
                 _, remainder = start.groups()
                 values = ROW_VALUES.match(remainder)
+                missing_rate = False
+                if not values:
+                    values = ROW_VALUES_WITHOUT_PRICE.match(remainder)
+                    missing_rate = bool(values)
                 if not values:
                     continue
                 current = {
                     "description_parts": [values.group("description")],
                     "qty": _number(values.group("qty")),
                     "uom": values.group("uom").upper(),
-                    "rate": _number(values.group("rate")),
-                    "amount": _number(values.group("amount")),
+                    "rate": 0.0 if missing_rate else _number(values.group("rate")),
+                    "amount": 0.0 if missing_rate else _number(values.group("amount")),
+                    "missing_rate": missing_rate,
                 }
                 continue
             if current:
