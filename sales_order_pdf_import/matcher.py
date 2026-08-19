@@ -28,6 +28,25 @@ def match_item(description: str) -> dict:
             "message": "No confident Item match",
         }
 
+    remembered = frappe.db.sql(
+        """
+        SELECT item.name, item.item_code, item.item_name, item.description,
+               item.stock_uom
+        FROM `tabSales Order PDF Item Mapping` mapping
+        INNER JOIN `tabItem` item ON item.name = mapping.item
+        WHERE mapping.disabled = 0
+          AND item.disabled = 0
+          AND mapping.normalized_description = %(description)s
+        LIMIT 1
+        """,
+        {"description": normalized},
+        as_dict=True,
+    )
+    if remembered:
+        result = _match_result(remembered[0], 1.0)
+        result.update(status="matched_remembered", message="Remembered match")
+        return result
+
     # Run exact case-insensitive matching before the limited fuzzy candidate
     # query. This prevents a broad word such as "vegetable" from filling the
     # candidate limit and hiding an exact Item Code or document name.

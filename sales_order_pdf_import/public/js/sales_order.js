@@ -37,7 +37,9 @@ function renderMatchStatus(row) {
     return `<span class="indicator-pill yellow">${frappe.utils.escape_html(row.message)}</span>`;
   }
   if (isImportableRow(row)) {
-    const label = row.status.includes("manual") ? __("Manually Matched") : __("Matched");
+    const label = row.status.includes("remembered")
+      ? __("Remembered Match")
+      : row.status.includes("manual") ? __("Manually Matched") : __("Matched");
     return `<span class="indicator-pill green">${label}</span>`;
   }
   return `<span class="indicator-pill orange">${frappe.utils.escape_html(
@@ -46,12 +48,9 @@ function renderMatchStatus(row) {
 }
 
 function renderItemMatch(row, index) {
-  const canMap = !isImportableRow(row) || row.status.includes("manual");
-  const button = canMap
-    ? `<br><button type="button" class="btn btn-xs btn-default manual-item-map" data-row-index="${index}">${__(
+  const button = `<br><button type="button" class="btn btn-xs btn-default manual-item-map" data-row-index="${index}">${__(
       isImportableRow(row) ? "Change Item" : "Select Item"
-    )}</button>`
-    : "";
+    )}</button>`;
   return `${frappe.utils.escape_html(row.item_code || "-")}<br>
     <small>${frappe.utils.escape_html(row.item_name || "")}</small>${button}`;
 }
@@ -190,6 +189,11 @@ function show_import_preview(frm, data) {
         default: row.item_code || "",
         reqd: 1,
         get_query: () => ({ filters: { disabled: 0 } }),
+      }, {
+        fieldname: "remember_mapping",
+        fieldtype: "Check",
+        label: __("Remember this mapping for future PDFs"),
+        default: 1,
       }],
       async (values) => {
         const response = await frappe.call({
@@ -198,6 +202,8 @@ function show_import_preview(frm, data) {
             item_code: values.item_code,
             pdf_uom: row.uom,
             missing_rate: row.missing_rate ? 1 : 0,
+            pdf_description: row.description,
+            remember_mapping: values.remember_mapping ? 1 : 0,
           },
           freeze: true,
           freeze_message: __("Validating selected Item..."),
@@ -209,7 +215,9 @@ function show_import_preview(frm, data) {
         tableRow.find(".match-result").html(renderMatchStatus(row));
         refreshCounts();
         frappe.show_alert({
-          message: __("Row {0} mapped to Item {1}.", [index + 1, row.item_code]),
+          message: response.message.mapping_saved
+            ? __("Row {0} mapped to Item {1}; future matches will remember it.", [index + 1, row.item_code])
+            : __("Row {0} mapped to Item {1}.", [index + 1, row.item_code]),
           indicator: "green",
         });
       },

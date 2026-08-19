@@ -8,7 +8,7 @@ from frappe.utils import cint
 from pypdf import PdfReader
 
 from sales_order_pdf_import.parser import parse_purchase_order
-from sales_order_pdf_import.matcher import match_item
+from sales_order_pdf_import.matcher import match_item, normalize
 
 
 @frappe.whitelist()
@@ -54,7 +54,8 @@ def parse_and_match_pdf(file_url: str) -> dict:
 
     for row in parsed["rows"]:
         row.update(match_item(row["description"]))
-        if row["status"] == "matched":
+        if row["status"].startswith("matched"):
+            original_status = row["status"]
             warnings = []
             canonical_uom = _resolve_uom(row["uom"])
             row["import_uom"] = canonical_uom or row["uom"]
@@ -76,14 +77,20 @@ def parse_and_match_pdf(file_url: str) -> dict:
                 )
             if warnings:
                 row.update(
-                    status="matched_with_warning",
+                    status=f"{original_status}_with_warning",
                     message=_("Matched; {0}").format("; ".join(warnings)),
                 )
     return parsed
 
 
 @frappe.whitelist()
-def get_manual_item_match(item_code: str, pdf_uom: str, missing_rate: int = 0) -> dict:
+def get_manual_item_match(
+    item_code: str,
+    pdf_uom: str,
+    missing_rate: int = 0,
+    pdf_description: str | None = None,
+    remember_mapping: int = 0,
+) -> dict:
     """Validate a user-selected enabled Item and return its import UOM."""
     item = frappe.get_doc("Item", item_code)
     if not item.has_permission("read"):
@@ -123,7 +130,41 @@ def get_manual_item_match(item_code: str, pdf_uom: str, missing_rate: int = 0) -
             status="matched_manual_with_warning",
             message=_("Manually matched; {0}").format("; ".join(warnings)),
         )
+    if cint(remember_mapping):
+        _remember_item_mapping(pdf_description, item.name)
+        result["mapping_saved"] = True
     return result
+
+
+def _remember_item_mapping(pdf_description: str | None, item_code: str) -> None:
+    description = (pdf_description or "").strip()
+    normalized_description = normalize(description)
+    if not normalized_description:
+        frappe.throw(_("A PDF description is required to remember this mapping."))
+
+    mapping_name = frappe.db.get_value(
+        "Sales Order PDF Item Mapping",
+        {"normalized_description": normalized_description},
+        "name",
+    )
+    if mapping_name:
+        mapping = frappe.get_doc("Sales Order PDF Item Mapping", mapping_name)
+        mapping.update(
+            pdf_description=description,
+            item=item_code,
+            disabled=0,
+        )
+        mapping.save()
+    else:
+        frappe.get_doc(
+            {
+                "doctype": "Sales Order PDF Item Mapping",
+                "pdf_description": description,
+                "normalized_description": normalized_description,
+                "item": item_code,
+                "disabled": 0,
+            }
+        ).insert()
 
 
 def _resolve_uom(pdf_uom: str) -> str | None:
